@@ -7,21 +7,23 @@ namespace FG
         public int Dimension{get; private set;}
 
         float[] m_array;
-        float m_magnitude;
 
         public Vector(params float[] _data)
         {
             Dimension = _data.Length;
             m_array = _data;
-            m_magnitude=0;
-            resetMagnitude();
         }
 
         public float Magnitude
         {
             get
             {
-                return m_magnitude;
+                float sum = 0;
+                for (int i = 0; i < Dimension; ++i)
+                {
+                    sum+=m_array[i]*m_array[i];
+                }
+                return (float)Math.Sqrt(sum);
             }
         }
 
@@ -38,6 +40,19 @@ namespace FG
             }
         }
 
+        public float Sum
+        {
+            get
+            {
+                float sum = 0;
+                for (int i = 0; i < Dimension; ++i)
+                {
+                    sum+=m_array[i];
+                }
+                return sum;
+            }
+        }
+
         public float[] Array
         {
             get
@@ -51,18 +66,51 @@ namespace FG
                     throw new Exception($"[FG.Vector.Array]:向量维度不能变 {Dimension}=>{value.Length}");
                 }
                 m_array = value;
-                resetMagnitude();
             }
         }
 
-        void resetMagnitude()
+        public void Mul (Vector _v1)
         {
-            float sum = 0;
+            if(_v1.Dimension!=Dimension)
+            {
+                throw new Exception($"[FG.Vector.Mul]:向量维度需相等 {Dimension},{_v1.Dimension}");
+            }
             for (int i = 0; i < Dimension; ++i)
             {
-                sum+=m_array[i]*m_array[i];
+                Array[i] *= _v1.Array[i];                
             }
-            m_magnitude = (float)Math.Sqrt(sum);
+        }
+
+        public void Mul (float _v1)
+        {
+            for (int i = 0; i < Dimension; ++i)
+            {
+                Array[i] *= _v1;                
+            }
+        }
+
+        public void Add (Vector _v1)
+        {
+            if(_v1.Dimension!=Dimension)
+            {
+                throw new Exception($"[FG.Vector.Add]:向量维度需相等 {Dimension},{_v1.Dimension}");
+            }
+            for (int i = 0; i < Dimension; ++i)
+            {
+                Array[i] += _v1.Array[i];                
+            }
+        }
+
+        public void Subtract (Vector _v1)
+        {
+            if(_v1.Dimension!=Dimension)
+            {
+                throw new Exception($"[FG.Vector.Subtract]:向量维度需相等 {Dimension},{_v1.Dimension}");
+            }
+            for (int i = 0; i < Dimension; ++i)
+            {
+                Array[i] -= _v1.Array[i];                
+            }
         }
 
         public static Vector operator* (Vector _v,float _w)
@@ -71,6 +119,20 @@ namespace FG
             for (int i = 0; i < arr.Length; ++i)
             {
                 arr[i] = _v.Array[i]*_w;                
+            }
+            return new Vector(arr);
+        }
+
+        public static Vector operator* (Vector _v1,Vector _v2)
+        {
+            if(_v1.Dimension!=_v2.Dimension)
+            {
+                throw new Exception($"[FG.Vector.*]:向量维度需相等 {_v1.Dimension},{_v1.Dimension}");
+            }
+            float[] arr = new float[_v1.Dimension];
+            for (int i = 0; i < arr.Length; ++i)
+            {
+                arr[i] = _v1.Array[i]* _v2.Array[i];                
             }
             return new Vector(arr);
         }
