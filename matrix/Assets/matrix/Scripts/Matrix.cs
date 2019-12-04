@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System;
+using System.Text;
 
 namespace FG
 {
@@ -41,11 +42,48 @@ namespace FG
             }
         }
 
-		public Matrix(int _h,int _v)
+		public Matrix(int _h,int _v,params float[] _array)
 		{
 			m_shape = new Shape(){H=_h,V=_v};
-            m_array = new float[m_shape.H*m_shape.V];
+			if(_array==null || _array.Length==0)
+			{
+            	m_array = new float[_h*_v];
+			}
+			else
+			{
+				if(_array.Length==_h*_v)
+				{
+					m_array = _array;
+				}
+				else if(_array.Length>_h*_v)
+				{
+					m_array = new float[_h*_v];
+					Array.Copy(_array,m_array,m_array.Length);
+				}
+				else
+				{
+					m_array = new float[_h*_v];
+					Array.Copy(_array,m_array,_array.Length);
+				}
+			}
 		}
+
+        public override string ToString()
+        {
+			StringBuilder sb = new StringBuilder();
+			sb.Append(m_shape.H);
+			sb.Append(" , ");
+			sb.Append(m_shape.V);
+			for(int v=0;v<m_shape.V;v++)
+			{
+				sb.Append("\n");
+				for(int h=0;h<m_shape.H;h++)
+				{
+					sb.Append(m_array[v*m_shape.H+h]+" , ");
+				}
+			}
+            return sb.ToString();
+        }
 
 	}
 

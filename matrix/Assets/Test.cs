@@ -8,9 +8,12 @@ public class Test : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        Vector v2_a = new Vector(30,1);
-        Vector v2_b = new Vector(-30,-1);
-        Debug.Log(Vector.Dot(v2_a.Normalize,v2_b.Normalize));
+        Matrix matrix = new Matrix
+        (8,3,
+        6.12f,5.554f,4.454545f,
+        3.145f,2,1.5445f
+        );
+        Debug.Log(matrix);
     }
 
     // Update is called once per frame
