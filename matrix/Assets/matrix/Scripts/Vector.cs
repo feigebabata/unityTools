@@ -178,6 +178,53 @@ namespace FG
             }
             return val;
         }
+
+        public override bool Equals(object obj)
+        {
+            return this == (Vector)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return base.ToString();
+        }
+
+        public static bool operator == (Vector _v1,Vector _v2)
+        {
+            if(_v1.Dimension!=_v2.Dimension)
+            {
+                return false;
+            }
+            for (int i = 0; i < _v1.Dimension; i++)
+            {
+                if(_v1.Array[i]!=_v2.Array[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static bool operator != (Vector _v1,Vector _v2)
+        {
+            if(_v1.Dimension!=_v2.Dimension)
+            {
+                return true;
+            }
+            for (int i = 0; i < _v1.Dimension; i++)
+            {
+                if(_v1.Array[i]!=_v2.Array[i])
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
         
     }
 }

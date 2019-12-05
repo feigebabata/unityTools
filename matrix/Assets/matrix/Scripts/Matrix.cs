@@ -17,7 +17,7 @@ namespace FG
 			}
 			set
 			{
-				if(m_shape.H*m_shape.V != value.H*value.V)
+				if(m_shape.X*m_shape.Y != value.X*value.Y)
 				{
 					throw new Exception($"[FG.Matrix.Shape]:矩阵大小不能变 {m_shape}=>{value}");
 				}
@@ -30,39 +30,39 @@ namespace FG
             get{return m_array.Length;}
         }
 
-        public float this[int h_idx,int v_int]
+        public float this[int _x,int _y]
         {
             get
             {
-                return m_array[h_idx+m_shape.H*v_int];
+                return m_array[_x+m_shape.X*_y];
             }
             set
             {
-                m_array[h_idx+m_shape.H*v_int] = value;
+                m_array[_x+m_shape.X*_y] = value;
             }
         }
 
-		public Matrix(int _h,int _v,params float[] _array)
+		public Matrix(int _x,int _y,params float[] _array)
 		{
-			m_shape = new Shape(){H=_h,V=_v};
+			m_shape = new Shape(){X=_x,Y=_y};
 			if(_array==null || _array.Length==0)
 			{
-            	m_array = new float[_h*_v];
+            	m_array = new float[_x*_y];
 			}
 			else
 			{
-				if(_array.Length==_h*_v)
+				if(_array.Length==_x*_y)
 				{
 					m_array = _array;
 				}
-				else if(_array.Length>_h*_v)
+				else if(_array.Length>_x*_y)
 				{
-					m_array = new float[_h*_v];
+					m_array = new float[_x*_y];
 					Array.Copy(_array,m_array,m_array.Length);
 				}
 				else
 				{
-					m_array = new float[_h*_v];
+					m_array = new float[_x*_y];
 					Array.Copy(_array,m_array,_array.Length);
 				}
 			}
@@ -71,30 +71,78 @@ namespace FG
         public override string ToString()
         {
 			StringBuilder sb = new StringBuilder();
-			sb.Append(m_shape.H);
-			sb.Append(" , ");
-			sb.Append(m_shape.V);
-			for(int v=0;v<m_shape.V;v++)
+			sb.Append(m_shape);
+			for(int y=0;y<m_shape.Y;y++)
 			{
 				sb.Append("\n");
-				for(int h=0;h<m_shape.H;h++)
+				for(int x=0;x<m_shape.X;x++)
 				{
-					sb.Append(m_array[v*m_shape.H+h]+" , ");
+					sb.Append(m_array[y*m_shape.X+x]+" , ");
 				}
 			}
             return sb.ToString();
+        }
+
+		public static Matrix One(int _x)
+		{
+			float[] array = new float[_x*_x];
+			for (int i = 0; i < _x; i++)
+			{
+				array[i*_x+i]=1;
+			}
+			return new Matrix(_x,_x,array);
+		}
+
+		public static Matrix operator* (Matrix _m1,Matrix _m2)
+        {
+            if(_m1.Shape.X!=_m2.Shape.Y)
+            {
+                throw new Exception($"[FG.Matrix.*]:矩阵相乘需 左列=右行 {_m1.Shape.X},{_m2.Shape.Y}");
+            }
+			var mat = new Matrix(_m2.Shape.X,_m1.Shape.Y);
+            for (int y = 0; y < mat.Shape.Y; ++y)
+            {
+                for (int x = 0; x < mat.Shape.X; x++)
+				{
+					for (int i = 0; i < _m1.Shape.X; i++)
+					{
+						mat[x,y]+= _m1[i,y] * _m2[x,i];
+					}
+				}               
+            }
+            return mat;
         }
 
 	}
 
 	public struct Shape
 	{
-		public int H;
-		public int V;
+		public int X;
+		public int Y;
+
+        public override bool Equals(object obj)
+        {
+            return this == (Shape)obj;
+        }
+
+        public override int GetHashCode()
+        {
+            return base.GetHashCode();
+        }
 
         public override string ToString()
         {
-            return $"[{H},{V}]";
+            return $"[{X},{Y}]";
         }
+
+		public static bool operator == (Shape _s1,Shape _s2)
+		{
+			return _s1.X==_s2.X && _s1.Y==_s2.Y;
+		}
+
+		public static bool operator != (Shape _s1,Shape _s2)
+		{
+			return _s1.X!=_s2.X || _s1.Y!=_s2.Y;
+		}
 	}
 }
