@@ -34,29 +34,6 @@ public class MultiThreadDownload : MonoSingleton<MultiThreadDownload>
         }
     }
 
-    public void Download(string _url,string _savaPath,string _md5,Action<bool> _callback)
-    {
-        Download(_url,_savaPath,(_isSucc)=>
-        {
-            if(_isSucc)
-            {
-                string localFileMD5 = MD5Compare.GetInstance().GetMD5HashFromFile(_savaPath);
-                if(_md5.Equals(localFileMD5))
-                {
-                    _callback(true);
-                }
-                else
-                {
-                    _callback(false);
-                }
-            }
-            else
-            {
-                _callback(false);
-            }
-        });
-    }
-
     public void Clear()
     {
         // throw new System.NotImplementedException();
