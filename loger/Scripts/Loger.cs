@@ -10,7 +10,7 @@ public static class Loger
     public static bool Enable = true;
 
     [Conditional("LOGER")]
-    public static void d(object _text, Color _color, params object[] _vals)
+    public static void d(Color _color, object _text, params object[] _vals)
     {
         if (!Enable)
         {
