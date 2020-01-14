@@ -1,0 +1,32 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.UI;
+using XiuDanUnity;
+
+namespace XiuDanUnity
+{
+	public class #NAME# : UGUIManager.UIBase 
+	{
+		public override void OnCreate()
+		{
+			
+		}
+		
+		public override void OnShow(object _openData = null)
+		{
+			
+		}
+		
+		public override void OnHide()
+		{
+			
+		}
+		
+		public override void OnDestroy()
+		{
+			
+		}
+		
+	}
+}
