@@ -89,7 +89,7 @@ public static class Broadcaster
 
     public static void Broadcast<T>(T _message) where T : IMsg
     {
-        Type key = typeof(T);
+        Type key = _message.GetType();
         Action<IMsg> evt;
         if(m_events.TryGetValue(key,out evt))
         {
