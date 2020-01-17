@@ -2,31 +2,71 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using XiuDanUnity;
 
-public class UGUIManager : MonoSingleton<UGUIManager> 
+public class UGUIManager : IManager 
 {
 	public static class Config
 	{
+		/// <summary>
+		/// 隐藏界面时的位置
+		/// </summary>
+		/// <returns></returns>
 		public static readonly Vector3 HidePos = new Vector3(3000,0,0);
 	}
+
+	/// <summary>
+	/// ui界面栈记录
+	/// </summary>
+	/// <returns></returns>
 	UIStack m_uiStack = new UIStack();
-	UIPool m_uiPool = new UIPool(5);        
+
+	/// <summary>
+	/// ui界面回收池
+	/// </summary>
+	/// <returns></returns>
+	UIPool m_uiPool = new UIPool(5);  
+
+	/// <summary>
+	/// ui界面父节点
+	/// </summary>      
 	Transform m_panelParent;
+
+	/// <summary>
+	/// ui界面ab文件 加载后不卸载 只在Clear的时候卸载
+	/// </summary>
 	AssetBundle m_panelAB;
 
-	protected override void Init()
+	/// <summary>
+	/// 清空所有ui界面
+	/// </summary>
+	public void Clear()
 	{
-		m_panelParent = GameObject.Find("Canvas/Panels").transform;
+		Loger.d(Color.green,"[UGUIManager.Clear]");
+		if(m_panelAB)
+		{
+			m_panelAB.Unload(true);
+			m_panelAB=null;
+		}
+		m_uiPool.Clear();
+		m_uiStack.Clear();
+		destroyAll();
+		m_panelParent=null;
+		Resources.UnloadUnusedAssets();
 	}
-
-	void Update()
+	
+	public void Update()
 	{
+		//监听系统返回键
 		if(Input.GetKeyDown(KeyCode.Escape) && m_uiStack.Count>0)
 		{
 			m_uiStack.Peek().OnClickBack();
 		}
 	}
 
+	/// <summary>
+	/// 关闭当前界面
+	/// </summary>
 	public void CloseCurUI()
 	{
 		destroy(m_uiStack.Pop());
@@ -38,6 +78,17 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 
 	public void Open<T>(OpenMode _mode=OpenMode.Open,object _data=null) where T : UIBase
 	{
+		if(!m_panelParent)
+		{
+			if(!GameObject.Find("UIRoot/Canvas/Panels"))
+			{
+				GameObject uiRoot = loadPrefab("UIRoot");
+				uiRoot.name="UIRoot";
+				uiRoot.transform.position=Vector3.zero;
+			}
+			m_panelParent = GameObject.Find("UIRoot/Canvas/Panels").transform;
+		}
+
 		Type newUIType = typeof(T);
 		if(m_uiStack.Count>0)
 		{
@@ -107,6 +158,11 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 		}
 	}
 
+	/// <summary>
+	/// 创建ui界面 优先从回收池中获取
+	/// </summary>
+	/// <param name="_uiType"></param>
+	/// <param name="_data"></param>
 	void create(Type _uiType,object _data)
 	{
 		UIBase ui = m_uiPool.Pull(_uiType);
@@ -128,6 +184,10 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 		show(ui,_data);
 	}
 
+	/// <summary>
+	/// 隐藏界面 ui位置移出视图之外 活动状态仍未true
+	/// </summary>
+	/// <param name="_ui"></param>
 	void hide(UIBase _ui)
 	{
 		if(_ui.m_State == State.Hide)
@@ -140,6 +200,10 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 		_ui.transform.localPosition = Config.HidePos;
 	}
 
+	/// <summary>
+	/// 移除界面 活动状态设为false 收入回收池
+	/// </summary>
+	/// <param name="_ui"></param>
 	void destroy(UIBase _ui)
 	{
 		hide(_ui);
@@ -153,26 +217,41 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 
 	UIBase loadUI(Type _uiType)
 	{        
-		string _name = _uiType.Name;
+		return loadPrefab(_uiType.Name).GetComponent<UIBase>();
+	}
+
+	/// <summary>
+	/// 从ab文件中获取预制件的实例
+	/// </summary>
+	/// <param name="_name"></param>
+	/// <returns></returns>
+	GameObject loadPrefab(string _name)
+	{
 		GameObject go = null;
 		#if UNITY_EDITOR
 		if (AssetBundles.AssetBundleConfig.IsEditorMode)
 		{
 			go = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AssetsPackage/BasicAssets/TwoRoomPanel/"+_name+".prefab");
-			go = Instantiate(go,m_panelParent);
-			return go.GetComponent<UIBase>();
+			go = GameObject.Instantiate(go,m_panelParent);
+			return go;
 		}
 		#endif
 		if(!m_panelAB)
 		{
-			string path = Application.dataPath+"/StreamingAssets/AssetBundles/basicassets/tworoompanel.assetbundle";
+			string path = Application.streamingAssetsPath+"/AssetBundles/basicassets/tworoompanel.assetbundle";
+
 			m_panelAB = AssetBundle.LoadFromFile(path);
 		}
 		go = m_panelAB.LoadAsset<GameObject>(_name+".prefab");
-		go = Instantiate(go,m_panelParent);
-		return go.GetComponent<UIBase>();
+		go = GameObject.Instantiate(go,m_panelParent);
+		return go;
 	}
 
+	/// <summary>
+	/// 显示界面 ui界面移至视图内
+	/// </summary>
+	/// <param name="_ui"></param>
+	/// <param name="_data"></param>
 	void show(UIBase _ui,object _data)
 	{
 		if(_ui.m_State==State.Show)
@@ -185,13 +264,49 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 		_ui.m_State = State.Show;
 	}
 
-	public class UIBase : MonoBehaviour
+	/// <summary>
+	/// 删除所有ui界面的Gameobject
+	/// </summary>
+	void destroyAll()
+	{
+		if(m_panelParent)
+		{
+			var desArr = new GameObject[m_panelParent.childCount];
+			for (int i = 0; i < m_panelParent.childCount; i++)
+			{
+				desArr[i] = m_panelParent.GetChild(i).gameObject;
+			}
+			for (int i = 0; i < desArr.Length; i++)
+			{
+				GameObject.Destroy(desArr[i]);
+			}
+		}
+	}
+
+    public void Init()
+    {
+
+    }
+
+    public void Reset()
+    {
+        
+    }
+
+	/// <summary>
+	/// ui界面基类 子类名需要和UI预制件名称相同
+	/// </summary>
+    public class UIBase : MonoBehaviour
 	{
 		[HideInInspector]
 		public State m_State;
+
+		/// <summary>
+		/// 系统返回键和UI返回键的响应 按需求在子类中可自定义响应逻辑
+		/// </summary>
 		public virtual void OnClickBack()
 		{
-			UGUIManager.Instance.CloseCurUI();
+			InstanceManager.Manager<UGUIManager>().CloseCurUI();
 		}
 
 		public virtual void OnCreate()
@@ -215,6 +330,9 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 		}
 	}
 
+	/// <summary>
+	/// 界面当前状态
+	/// </summary>
 	public enum State
 	{
 		Create,
@@ -230,9 +348,24 @@ public class UGUIManager : MonoSingleton<UGUIManager>
 
 	public enum OpenMode
 	{
+		/// <summary>
+		/// 打开界面在栈顶则忽略 否则新建界面并隐藏栈顶界面 默认打开模式
+		/// </summary>
 		Open,
+
+		/// <summary>
+		/// 新建界面不隐藏栈顶界面 常用于弹窗之类
+		/// </summary>
 		Overlay,
+
+		/// <summary>
+		/// 打开界面在栈顶则忽略 栈中无则新建否则弹栈至打开界面
+		/// </summary>
 		Back,
+
+		/// <summary>
+		/// 打开界面在栈顶则忽略 栈中无则新建否则将打开界面移至栈顶
+		/// </summary>
 		Top,
 	}
 
