@@ -43,6 +43,13 @@ public class UGUIManager : IManager
 	public void Clear()
 	{
 		Loger.d(Color.green,"[UGUIManager.Clear]");
+
+		while(m_uiStack.Peek())
+		{
+			var ui = m_uiStack.Pop();
+			destroy(ui);
+		}
+
 		if(m_panelAB)
 		{
 			m_panelAB.Unload(true);
@@ -292,6 +299,11 @@ public class UGUIManager : IManager
     {
         
     }
+
+	public GameObject GetUIPrefab(string _name)
+	{
+		return loadPrefab(_name);
+	}
 
 	/// <summary>
 	/// ui界面基类 子类名需要和UI预制件名称相同
