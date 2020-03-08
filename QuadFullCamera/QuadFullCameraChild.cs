@@ -2,20 +2,21 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace FG
+namespace XiuDanUnity.App
 {
 	[RequireComponent(typeof(MeshRenderer))]
 	public class QuadFullCameraChild : MonoBehaviour 
 	{
 		public string[] TexNames=new string[]{"_MainTex"};
 		Material m_mat;
-		void Awake()
-		{
-			m_mat = GetComponent<MeshRenderer>().material;
-		}
+		
 
 		public void SetCrop(int _width,int _height)
 		{
+            if(!m_mat)
+            {
+                m_mat = GetComponent<MeshRenderer>().material;
+            }
 			if(TexNames!=null && TexNames.Length>0)
 			{
 				for (int i = 0; i < TexNames.Length; i++)
@@ -26,7 +27,7 @@ namespace FG
 					}
 					else
 					{
-						Debug.LogWarningFormat("[QuadFullCameraChild.SetCrop]{0}无贴图:{1}",name,TexNames[i]);
+						Debug.LogFormat("[QuadFullCameraChild.SetCrop]{0}无贴图:{1}",name,TexNames[i]);
 					}
 				}
 			}

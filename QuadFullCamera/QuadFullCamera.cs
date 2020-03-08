@@ -1,8 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
-namespace FG
+namespace XiuDanUnity.App
 {
 	[RequireComponent(typeof(Camera))]
 	public class QuadFullCamera : MonoBehaviour 
@@ -13,6 +14,7 @@ namespace FG
 		float m_orthographicSize;
 		float m_fieldOfView;
 		public QuadFullCameraChild[] m_Quads;
+		public UnityEvent m_ViewChangedEnd;
 
 
 		// Use this for initialization
@@ -20,7 +22,7 @@ namespace FG
 		{
 			m_camera = GetComponent<Camera>();
 			resetLastData();
-			resetQuadT();
+			ResetQuadT();
 		}
 
 		// void Start()
@@ -41,7 +43,7 @@ namespace FG
 				)
 				{
 					resetLastData();
-					resetQuadT();
+					ResetQuadT();
 				}
 			}
 		}
@@ -56,7 +58,7 @@ namespace FG
 
 		}
 
-		void resetQuadT()
+		public void ResetQuadT()
 		{
 			if(m_orthographic)
 			{
@@ -83,6 +85,7 @@ namespace FG
 					m_Quads[i].SetCrop(m_width,m_height);
 				}
 			}
+			m_ViewChangedEnd.Invoke();
 		}
 	}
 }
