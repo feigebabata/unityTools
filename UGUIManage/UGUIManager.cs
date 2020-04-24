@@ -2,9 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using XiuDanUnity;
 
-public class UGUIManager : IManager 
+public class UGUIManager 
 {
 	public static class Config
 	{
@@ -25,41 +24,31 @@ public class UGUIManager : IManager
 	/// ui界面回收池
 	/// </summary>
 	/// <returns></returns>
-	UIPool m_uiPool = new UIPool(5);  
+	UIPool m_uiPool = new UIPool();  
 
 	/// <summary>
 	/// ui界面父节点
 	/// </summary>      
 	Transform m_panelParent;
 
-	/// <summary>
-	/// ui界面ab文件 加载后不卸载 只在Clear的时候卸载
-	/// </summary>
-	AssetBundle m_panelAB;
 
 	/// <summary>
 	/// 清空所有ui界面
 	/// </summary>
 	public void Clear()
 	{
-		Loger.d(Color.green,"[UGUIManager.Clear]");
-
+		Loger.d("[UGUIManager.Clear]");
 		while(m_uiStack.Peek())
 		{
 			var ui = m_uiStack.Pop();
+			unfocus(ui);
+			hide(ui);
 			destroy(ui);
-		}
-
-		if(m_panelAB)
-		{
-			m_panelAB.Unload(true);
-			m_panelAB=null;
 		}
 		m_uiPool.Clear();
 		m_uiStack.Clear();
 		destroyAll();
 		m_panelParent=null;
-		Resources.UnloadUnusedAssets();
 	}
 	
 	public void Update()
@@ -76,83 +65,111 @@ public class UGUIManager : IManager
 	/// </summary>
 	public void CloseCurUI()
 	{
-		destroy(m_uiStack.Pop());
 		if(m_uiStack.Count>0)
 		{
-			show(m_uiStack.Peek(),null);
+			UIBase oldUI = m_uiStack.Pop();
+			Loger.d("[UGUIManager.CloseCurUI] {0}",oldUI);
+			unfocus(oldUI);
+			hide(oldUI);
+			destroy(oldUI);
+			if(m_uiStack.Count>0)
+			{
+				UIBase newUI = m_uiStack.Peek();
+				show(newUI,null);
+				focus(newUI);
+			}
 		}
 	}
 
 	public void Open<T>(OpenMode _mode=OpenMode.Open,object _data=null) where T : UIBase
 	{
+		Type newUIType = typeof(T);
+		Loger.d("[UGUIManager.Open] {0}",newUIType);
 		if(!m_panelParent)
 		{
 			if(!GameObject.Find("UIRoot/Canvas/Panels"))
 			{
-				GameObject uiRoot = loadPrefab("UIRoot");
+				GameObject uiRoot = loadUIPanel("UIRoot");
 				uiRoot.name="UIRoot";
 				uiRoot.transform.position=Vector3.zero;
 			}
 			m_panelParent = GameObject.Find("UIRoot/Canvas/Panels").transform;
 		}
 
-		Type newUIType = typeof(T);
 		if(m_uiStack.Count>0)
 		{
+			UIBase oldUI,newUI=null;
+			oldUI = m_uiStack.Peek();
 			switch(_mode)
 			{
 				case OpenMode.Open:
 				{
-					if(m_uiStack.Peek().GetType()!=newUIType)
+					if(oldUI.GetType()!=newUIType)
 					{
-						hide(m_uiStack.Peek());
-						create(newUIType,_data);
+						unfocus(oldUI);
+						hide(oldUI);
+						create(newUIType);
+						newUI = m_uiStack.Peek();
+						show(newUI,_data);
+						focus(newUI);
 					}
 				}
 				break;
 				case OpenMode.Top:
 				{
-					if(m_uiStack.Peek().GetType()!=newUIType)
+					if(oldUI.GetType()!=newUIType)
 					{
-						hide(m_uiStack.Peek());
-						UIBase ui = m_uiStack.Find((_ui)=>{return _ui.GetType()==newUIType;});
-						if(ui)
+						unfocus(oldUI);
+						hide(oldUI);
+						newUI = m_uiStack.Find((_ui)=>{return _ui.GetType()==newUIType;});
+						if(newUI)
 						{
-							m_uiStack.Remove(ui);
-							m_uiStack.Push(ui);
-							ui.m_State = State.Hide2Show;
-							show(ui,_data);
+							m_uiStack.Remove(newUI);
+							m_uiStack.Push(newUI);
 						}
 						else
 						{
-							create(newUIType,_data);
+							create(newUIType);
+							newUI = m_uiStack.Peek();
 						}
+						show(newUI,_data);
+						focus(newUI);
 					}
 				}
 				break;
 				case OpenMode.Overlay:
 				{
-					create(newUIType,_data);
+					unfocus(oldUI);
+					create(newUIType);
+					newUI = m_uiStack.Peek();
+					show(newUI,_data);
+					focus(newUI);
 				}
 				break;
 				case OpenMode.Back:
 				{
-					if(m_uiStack.Peek().GetType()!=newUIType)
+					if(oldUI.GetType()!=newUIType)
 					{
 						if(m_uiStack.Find((_ui)=>{return _ui.GetType()==newUIType;})==null)
 						{
-							hide(m_uiStack.Peek());
-							create(newUIType,_data);
+							unfocus(oldUI);
+							hide(oldUI);
+							create(newUIType);
+							newUI = m_uiStack.Peek();
+							show(newUI,_data);
+							focus(newUI);
 						}
 						else
 						{
 							while(m_uiStack.Peek().GetType()!=newUIType)
 							{
+								unfocus(m_uiStack.Peek());
+								hide(m_uiStack.Peek());
 								destroy(m_uiStack.Pop());
 							}
 							UIBase ui = m_uiStack.Peek();
-							ui.m_State = State.Hide2Show;
 							show(ui,_data);
+							focus(ui);
 						}
 					}
 				}
@@ -161,7 +178,53 @@ public class UGUIManager : IManager
 		}
 		else
 		{
-			create(newUIType,_data);
+			create(newUIType);
+			show(m_uiStack.Peek(),_data);
+			focus(m_uiStack.Peek());
+		}
+	}
+
+	/// <summary>
+	/// 关闭指定界面
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public void Close<T>() where T : UIBase
+	{
+		if(m_uiStack.Count>0)
+		{
+			Type uiType = typeof(T);
+			if(m_uiStack.Peek().GetType()==uiType)
+			{
+				CloseCurUI();
+			}
+			else
+			{
+				var ui = m_uiStack.Find((_ui)=>{return _ui.GetType()==uiType;});
+				if(ui!=null)
+				{
+					m_uiStack.Remove(ui);
+				}
+
+			}
+		}
+
+	}
+
+	void focus(UIBase _ui)
+	{
+		if(_ui.m_State == UICycleState.UnFocus || _ui.m_State == UICycleState.Show)
+		{
+			_ui.m_State = UICycleState.Focus;
+			_ui.OnFocus();
+		}
+	}
+
+	void unfocus(UIBase _ui)
+	{
+		if(_ui.m_State == UICycleState.Focus)
+		{
+			_ui.m_State = UICycleState.UnFocus;
+			_ui.OnUnFocus();
 		}
 	}
 
@@ -170,25 +233,20 @@ public class UGUIManager : IManager
 	/// </summary>
 	/// <param name="_uiType"></param>
 	/// <param name="_data"></param>
-	void create(Type _uiType,object _data)
+	void create(Type _uiType)
 	{
 		UIBase ui = m_uiPool.Pull(_uiType);
 		if(ui==null)
 		{
-			ui = loadUI(_uiType);
+			GameObject prefab = loadUIPanel(_uiType.Name,m_panelParent);
+			ui = prefab.GetComponent<UIBase>();
 			ui.gameObject.name = _uiType.Name;
-			ui.m_State = State.Create;
-		}
-		else
-		{
-			ui.m_State = State.Destroy2Create;
 		}
 		ui.gameObject.SetActive(true);
 		ui.transform.localPosition = Config.HidePos;
 		m_uiStack.Push(ui);
 		ui.OnCreate();
-		ui.m_State = State.Create2Show;
-		show(ui,_data);
+		ui.m_State = UICycleState.Create;
 	}
 
 	/// <summary>
@@ -197,14 +255,12 @@ public class UGUIManager : IManager
 	/// <param name="_ui"></param>
 	void hide(UIBase _ui)
 	{
-		if(_ui.m_State == State.Hide)
+		if(_ui.m_State == UICycleState.UnFocus)
 		{
-			return;
+			_ui.OnHide();
+			_ui.m_State = UICycleState.Hide;
+			_ui.transform.localPosition = Config.HidePos;
 		}
-		_ui.m_State = State.Show2Hide;
-		_ui.OnHide();
-		_ui.m_State = State.Hide;
-		_ui.transform.localPosition = Config.HidePos;
 	}
 
 	/// <summary>
@@ -213,46 +269,13 @@ public class UGUIManager : IManager
 	/// <param name="_ui"></param>
 	void destroy(UIBase _ui)
 	{
-		hide(_ui);
-		_ui.m_State = State.Hide2Destory;
 		_ui.OnDestroy();
-		_ui.m_State = State.Destroy;
+		_ui.m_State = UICycleState.Destroy;
 		_ui.gameObject.SetActive(false);
 		m_uiPool.Push(_ui);
 
 	}
 
-	UIBase loadUI(Type _uiType)
-	{        
-		return loadPrefab(_uiType.Name).GetComponent<UIBase>();
-	}
-
-	/// <summary>
-	/// 从ab文件中获取预制件的实例
-	/// </summary>
-	/// <param name="_name"></param>
-	/// <returns></returns>
-	GameObject loadPrefab(string _name)
-	{
-		GameObject go = null;
-		#if UNITY_EDITOR
-		if (AssetBundles.AssetBundleConfig.IsEditorMode)
-		{
-			go = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AssetsPackage/BasicAssets/TwoRoomPanel/"+_name+".prefab");
-			go = GameObject.Instantiate(go,m_panelParent);
-			return go;
-		}
-		#endif
-		if(!m_panelAB)
-		{
-			string path = Application.streamingAssetsPath+"/AssetBundles/basicassets/tworoompanel.assetbundle";
-
-			m_panelAB = AssetBundle.LoadFromFile(path);
-		}
-		go = m_panelAB.LoadAsset<GameObject>(_name+".prefab");
-		go = GameObject.Instantiate(go,m_panelParent);
-		return go;
-	}
 
 	/// <summary>
 	/// 显示界面 ui界面移至视图内
@@ -261,14 +284,13 @@ public class UGUIManager : IManager
 	/// <param name="_data"></param>
 	void show(UIBase _ui,object _data)
 	{
-		if(_ui.m_State==State.Show)
+		if(_ui.m_State==UICycleState.Create || _ui.m_State==UICycleState.Hide)
 		{
-			return;
+			_ui.transform.SetSiblingIndex(m_panelParent.childCount-1);
+			_ui.transform.localPosition = Vector3.zero;
+			_ui.OnShow(_data);
+			_ui.m_State = UICycleState.Show;
 		}
-		_ui.transform.SetSiblingIndex(m_panelParent.childCount-1);
-		_ui.transform.localPosition = Vector3.zero;
-		_ui.OnShow(_data);
-		_ui.m_State = State.Show;
 	}
 
 	/// <summary>
@@ -290,35 +312,35 @@ public class UGUIManager : IManager
 		}
 	}
 
-    public void Init()
-    {
-
-    }
-
-    public void Reset()
-    {
-        
-    }
-
-	public GameObject GetUIPrefab(string _name)
+	GameObject loadUIPanel(string _path,Transform _parent=null)
 	{
-		return loadPrefab(_name);
+		
+	}
+
+	public void Init()
+	{
+		
+	}
+
+	public void Reset()
+	{
+		
 	}
 
 	/// <summary>
 	/// ui界面基类 子类名需要和UI预制件名称相同
 	/// </summary>
-    public class UIBase : MonoBehaviour
+	public class UIBase : MonoBehaviour,IUICycle
 	{
 		[HideInInspector]
-		public State m_State;
+		public UICycleState m_State;
 
 		/// <summary>
 		/// 系统返回键和UI返回键的响应 按需求在子类中可自定义响应逻辑
 		/// </summary>
 		public virtual void OnClickBack()
 		{
-			InstanceManager.Manager<UGUIManager>().CloseCurUI();
+			
 		}
 
 		public virtual void OnCreate()
@@ -340,23 +362,19 @@ public class UGUIManager : IManager
 		{
 			
 		}
+
+		public virtual void OnFocus()
+		{
+			
+		}
+
+		public virtual void OnUnFocus()
+		{
+			
+		}
 	}
 
-	/// <summary>
-	/// 界面当前状态
-	/// </summary>
-	public enum State
-	{
-		Create,
-		Create2Show,
-		Show,
-		Show2Hide,
-		Hide,
-		Hide2Show,
-		Hide2Destory,
-		Destroy,
-		Destroy2Create,
-	}
+
 
 	public enum OpenMode
 	{
@@ -381,18 +399,12 @@ public class UGUIManager : IManager
 		Top,
 	}
 
+
 	public class UIPool
 	{
-		public int MaxCount;
 		List<UIBase> m_uiList = new List<UIBase>();
-        private int v;
 
-        public UIPool(int v)
-        {
-            this.MaxCount = v;
-        }
-
-        public void Push(UIBase _ui)
+		public void Push(UIBase _ui)
 		{
 			m_uiList.Add(_ui);
 		}
@@ -420,7 +432,7 @@ public class UGUIManager : IManager
 			m_uiList.Clear();
 		}
 	}
-
+	
 	public class UIStack
 	{
 		List<UIBase> m_uiList = new List<UIBase>();
@@ -474,6 +486,27 @@ public class UGUIManager : IManager
 		{
 			return m_uiList.Find(_match);
 		}
+	}
+
+	public interface IUICycle
+	{
+		void OnCreate();
+		void OnShow(object _data);
+		void OnFocus();
+		void OnUnFocus();
+		void OnHide();
+		void OnDestroy();
+	}    
+	
+	public enum UICycleState
+	{
+		None=0,
+		Create=3,//创建视图之外
+		Show=2,//移至视图内
+		Focus=1,//有焦点
+		UnFocus=-1,//无焦点
+		Hide=-2,//移至视图外
+		Destroy=-3,//销毁或添加至回收池
 	}
 }
 
